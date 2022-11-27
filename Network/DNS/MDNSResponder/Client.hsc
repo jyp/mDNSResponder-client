@@ -77,9 +77,11 @@ import Network.Socket.Msg
 newtype DNSServiceFlags =
   DNSServiceFlags #{type DNSServiceFlags} deriving (Eq, Bits)
 
+instance Semigroup DNSServiceFlags where
+  (<>) = (.|.)
+  
 instance Monoid DNSServiceFlags where
   mempty = DNSServiceFlags 0
-  mappend = (.|.)
 
 -- | An index to specify on which interface a service exists.
 newtype InterfaceIndex = InterfaceIndex Word32
@@ -557,8 +559,8 @@ sendThread sock chan e_handler sTidVar rTidVar unmask = do
         poke (plusPtr reqptr ipcMsgHdrSz) (0 :: CChar)
         pokeBody req $ (plusPtr reqptr (ipcMsgHdrSz + 1))
         sendAll sock (castPtr reqptr) full_sz
-        alloca $ \cmsgptr -> do
-          poke cmsgptr (S.fdSocket them)
+        alloca $ \cmsgptr -> S.withFdSocket them $ \theirFd ->  do
+          poke cmsgptr theirFd
           cmsg <- unsafePackCStringLen (castPtr cmsgptr, #{size int})
           body <- unsafePackCStringLen ((plusPtr reqptr full_sz), 1)
           sendMsg sock body (S.SockAddrUnix "")
